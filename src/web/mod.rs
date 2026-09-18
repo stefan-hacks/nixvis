@@ -28,6 +28,7 @@ use crate::search::SearchEngine;
 const INDEX_HTML: &str = include_str!("../../web/index.html");
 const APP_JS: &str = include_str!("../../web/app.js");
 const GRAPH_JS: &str = include_str!("../../web/graph.js");
+const OPTIONS_JS: &str = include_str!("../../web/options.js");
 const STYLE_CSS: &str = include_str!("../../web/style.css");
 const FAVICON: &[u8] = include_bytes!("../../web/favicon.svg");
 
@@ -219,6 +220,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/favicon.ico", get(favicon))
         .route("/app.js", get(app_js))
         .route("/graph.js", get(graph_js))
+        .route("/options.js", get(options_js))
         .route("/style.css", get(style_css))
         .route("/api/v1/health", get(health))
         .route("/api/v1/search", get(search))
@@ -249,6 +251,10 @@ async fn favicon() -> impl IntoResponse {
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("image/svg+xml"));
     (headers, FAVICON)
+}
+
+async fn options_js() -> impl IntoResponse {
+    static_js(OPTIONS_JS)
 }
 
 async fn graph_js() -> impl IntoResponse {

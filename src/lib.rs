@@ -12,6 +12,7 @@ pub mod graph;
 pub mod index;
 pub mod indexer;
 pub mod model;
+pub mod nix_derivation;
 pub mod nixos_search;
 pub mod options;
 pub mod search;

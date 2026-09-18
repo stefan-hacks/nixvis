@@ -49,6 +49,11 @@
         <span class="brand__tag">v0.1.0</span>
       </div>
       <div class="top-bar__actions">
+        <div class="mode-switcher" id="mode-switcher" role="tablist" aria-label="Browse mode">
+          <button class="mode-btn is-active" data-mode="packages" role="tab" aria-selected="true" title="Packages (1)">Packages</button>
+          <button class="mode-btn" data-mode="nixos" role="tab" aria-selected="false" title="NixOS Options (2)">NixOS</button>
+          <button class="mode-btn" data-mode="hm" role="tab" aria-selected="false" title="Home-Manager Options (3)">HM</button>
+        </div>
         <button id="btn-theme" class="btn-icon" title="Toggle theme (t)">
           <span aria-hidden="true">◐</span>
           <span class="sr-only">Toggle theme</span>
@@ -174,6 +179,7 @@
 
   <!-- Application scripts — loaded deferred for non-blocking parsing -->
   <script src="graph.js" defer></script>
+  <script src="options.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

@@ -1103,3 +1103,82 @@ body {
     display: none;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*  MODE SWITCHER (Packages / NixOS / HM tabs)                              */
+/* -------------------------------------------------------------------------- */
+.mode-switcher {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--panel);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  margin-right: 0.5rem;
+}
+.mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.mode-btn.is-active {
+  background: var(--accent);
+  color: var(--bg);
+}
+.mode-btn:hover:not(.is-active) {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  OPTIONS PANEL                                                             */
+/* -------------------------------------------------------------------------- */
+.panel--options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+.options-search-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.options-detail {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  overflow-y: auto;
+}
+.options-detail__name {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+.options-detail__type {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+.options-detail__section h4 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+.options-detail__section pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+}

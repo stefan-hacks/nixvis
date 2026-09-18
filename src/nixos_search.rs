@@ -282,3 +282,57 @@ fn pkg_from_source(src: EsPackageSource) -> PkgJson {
         flake: String::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_hits() {
+        let json = r#"{
+            "hits": {
+                "total": {"value": 1, "relation": "eq"},
+                "hits": [
+                    {
+                        "_source": {
+                            "package_attr_name": "hello",
+                            "package_pname": "hello",
+                            "package_pversion": "2.12.3",
+                            "package_description": "A greeting program",
+                            "package_homepage": ["https://example.com"],
+                            "package_license": [{"shortName": "GPL-3.0", "fullName": "GNU GPLv3"}]
+                        }
+                    }
+                ]
+            }
+        }"#;
+
+        let resp: EsSearchResponse = serde_json::from_str(json).expect("parse ok");
+        assert_eq!(resp.hits.hits.len(), 1);
+        let src = &resp.hits.hits[0]._source;
+        assert_eq!(src.package_attr_name, "hello");
+        assert_eq!(src.package_pversion, "2.12.3");
+    }
+
+    #[test]
+    fn test_pkg_from_source() {
+        let src = EsPackageSource {
+            package_attr_name: "hello".into(),
+            package_pname: "hello".into(),
+            package_pversion: "2.12.3".into(),
+            package_description: Some("A greeting".into()),
+            package_long_description: None,
+            package_homepage: vec!["https://example.com".into()],
+            package_license: vec![EsLicense {
+                short_name: "GPL".into(),
+                full_name: "GPLv3".into(),
+            }],
+            package_position: None,
+            package_dep_count: 1,
+        };
+        let pkg = pkg_from_source(src);
+        assert_eq!(pkg.name, "hello-2.12.3");
+        assert_eq!(pkg.attribute, "hello");
+        assert_eq!(pkg.version, "2.12.3");
+    }
+}
