@@ -145,7 +145,10 @@ pub fn build(
 
     // Try live nix search first if available.
     if let Some(nix_path) = find_nix() {
-        let _ = progress.send(IndexEvent::Progress { done: 5, total: 100 });
+        let _ = progress.send(IndexEvent::Progress {
+            done: 5,
+            total: 100,
+        });
         match run_nix_search(&nix_path, cancel, progress) {
             Ok(doc) => {
                 let raw = serde_json::to_vec(&doc)
@@ -162,11 +165,17 @@ pub fn build(
     }
 
     // Fallback: embedded JSON (works without Nix installed).
-    let _ = progress.send(IndexEvent::Progress { done: 50, total: 100 });
+    let _ = progress.send(IndexEvent::Progress {
+        done: 50,
+        total: 100,
+    });
     let raw = EMBEDDED_INDEX.as_bytes();
     let doc: crate::model::IndexDoc = serde_json::from_slice(raw)
         .map_err(|e| IndexerError::Exited(format!("cannot parse embedded index: {e}")))?;
-    let _ = progress.send(IndexEvent::Progress { done: 100, total: 100 });
+    let _ = progress.send(IndexEvent::Progress {
+        done: 100,
+        total: 100,
+    });
     let commit = doc.header.nixpkgs_commit.clone();
     Ok((doc, raw.to_vec(), commit))
 }
@@ -198,7 +207,10 @@ fn run_nix_search(
             for line in reader.lines().map_while(Result::ok) {
                 // nix search prints "evaluating '...'" lines to stderr.
                 if line.starts_with("evaluating") {
-                    let _ = progress_tx.send(IndexEvent::Progress { done: 10, total: 100 });
+                    let _ = progress_tx.send(IndexEvent::Progress {
+                        done: 10,
+                        total: 100,
+                    });
                 }
             }
         })
@@ -241,7 +253,9 @@ fn run_nix_search(
         .wait()
         .map_err(|e| IndexerError::Exited(format!("wait error: {e}")))?;
     if !status.success() {
-        return Err(IndexerError::Exited(format!("nix search exited with {status}")));
+        return Err(IndexerError::Exited(format!(
+            "nix search exited with {status}"
+        )));
     }
     if out.is_empty() {
         return Err(IndexerError::Exited("nix search produced no output".into()));
@@ -253,12 +267,18 @@ fn run_nix_search(
         )));
     }
 
-    let _ = progress.send(IndexEvent::Progress { done: 80, total: 100 });
+    let _ = progress.send(IndexEvent::Progress {
+        done: 80,
+        total: 100,
+    });
     let nix_pkgs: serde_json::Value = serde_json::from_slice(&out)
         .map_err(|e| IndexerError::Exited(format!("invalid JSON from nix search: {e}")))?;
 
     let doc = parse_nix_search_json(nix_pkgs)?;
-    let _ = progress.send(IndexEvent::Progress { done: 100, total: 100 });
+    let _ = progress.send(IndexEvent::Progress {
+        done: 100,
+        total: 100,
+    });
     Ok(doc)
 }
 

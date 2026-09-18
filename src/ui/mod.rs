@@ -4,6 +4,7 @@ pub mod detail;
 pub mod graph;
 pub mod help;
 pub mod list;
+pub mod options;
 pub mod tree;
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -104,6 +105,8 @@ fn draw_body(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
         Tab::Deps => tree::draw_deps(f, app, th, area),
         Tab::RevDeps => tree::draw_revs(f, app, th, area),
         Tab::Graph => graph::draw(f, app, th, area),
+        Tab::NixosOptions => options::draw(f, app, th, area),
+        Tab::HmOptions => options::draw(f, app, th, area),
     }
 }
 
@@ -135,9 +138,7 @@ fn status_left(app: &App, th: &Theme) -> Span<'static> {
                 "starting".to_string()
             };
             Span::styled(
-                format!(
-                    "{spinner} indexing Nix packages… {progress} (first run can take minutes)"
-                ),
+                format!("{spinner} indexing Nix packages… {progress} (first run can take minutes)"),
                 Style::default().fg(th.accent),
             )
         }

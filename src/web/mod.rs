@@ -35,7 +35,7 @@ const CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self'; \
                    connect-src 'self'; img-src 'self' data:; \
                    frame-ancestors 'none'; base-uri 'none'";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum WebPhase {
     Loading { done: u64, total: u64 },
     Ready,
@@ -224,6 +224,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/v1/search", get(search))
         .route("/api/v1/package/{name}", get(package))
         .route("/api/v1/graph/{name}", get(graph))
+        .route("/api/v1/options/nixos", get(nixos_options))
+        .route("/api/v1/options/hm", get(hm_options))
         .layer(middleware::from_fn(local_only))
         .with_state(state)
 }
@@ -286,7 +288,9 @@ struct Health {
 async fn health(State(state): State<Arc<AppState>>) -> Response {
     let snap = state.snapshot();
     let (packages, generation, commit, ok) = match snap {
-        Some((index, _, generation)) => (index.len(), generation, index.nixpkgs_commit.clone(), true),
+        Some((index, _, generation)) => {
+            (index.len(), generation, index.nixpkgs_commit.clone(), true)
+        }
         None => (0, 0, String::new(), false),
     };
     let phase = state.phase();
@@ -513,6 +517,115 @@ async fn graph(
     .await
     .map_err(|_| ApiError::Unavailable("graph task failed".into()))??;
     Ok((StatusCode::OK, Json(body)).into_response())
+}
+
+// ---------------------------------------------------------------------------
+// Options handlers
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, serde::Deserialize)]
+struct OptionsQuery {
+    q: Option<String>,
+}
+
+async fn nixos_options(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<OptionsQuery>,
+) -> Response {
+    let guard = state.inner.read().unwrap();
+    let (generation, phase) = (guard.generation, guard.phase.clone());
+    drop(guard);
+
+    if !matches!(phase, WebPhase::Ready) {
+        return (StatusCode::SERVICE_UNAVAILABLE, "index not ready").into_response();
+    }
+
+    let opts = match crate::options::OptionsIndex::load() {
+        Ok(o) => o,
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("options error: {e}"))
+                .into_response();
+        }
+    };
+
+    let q_str = q.q.as_deref().unwrap_or("").to_lowercase();
+    let nixos_filtered: Vec<_> = if q_str.is_empty() {
+        opts.doc.nixos_options
+    } else {
+        opts.doc.nixos_options
+            .into_iter()
+            .filter(|opt| {
+                opt.name.to_lowercase().contains(&q_str)
+                    || opt.description.to_lowercase().contains(&q_str)
+            })
+            .collect()
+    };
+    let results: Vec<serde_json::Value> = nixos_filtered
+        .into_iter()
+        .map(|opt| json!({
+            "name": opt.name,
+            "description": opt.description,
+            "type": opt.option_type,
+            "default": opt.default,
+        }))
+        .collect();
+
+    let body = json!({
+        "generation": generation,
+        "count": results.len(),
+        "items": results,
+    });
+    (StatusCode::OK, Json(body)).into_response()
+}
+
+async fn hm_options(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<OptionsQuery>,
+) -> Response {
+    let guard = state.inner.read().unwrap();
+    let (generation, phase) = (guard.generation, guard.phase.clone());
+    drop(guard);
+
+    if !matches!(phase, WebPhase::Ready) {
+        return (StatusCode::SERVICE_UNAVAILABLE, "index not ready").into_response();
+    }
+
+    let opts = match crate::options::OptionsIndex::load() {
+        Ok(o) => o,
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("options error: {e}"))
+                .into_response();
+        }
+    };
+
+    let q_str = q.q.as_deref().unwrap_or("").to_lowercase();
+    let hm_filtered: Vec<_> = if q_str.is_empty() {
+        opts.doc.hm_options
+    } else {
+        opts.doc.hm_options
+            .into_iter()
+            .filter(|opt| {
+                opt.name.to_lowercase().contains(&q_str)
+                    || opt.description.to_lowercase().contains(&q_str)
+            })
+            .collect()
+    };
+    let results: Vec<serde_json::Value> = hm_filtered
+        .into_iter()
+        .map(|opt| json!({
+            "name": opt.name,
+            "description": opt.description,
+            "type": opt.option_type,
+            "default": opt.default,
+        }))
+        .collect();
+
+    let body = json!({
+        "generation": generation,
+        "count": results.len(),
+        "items": results,
+    });
+    (StatusCode::OK, Json(body)).into_response()
 }
 
 // ---------------------------------------------------------------------------

@@ -20,10 +20,19 @@ pub enum Tab {
     Deps,
     RevDeps,
     Graph,
+    NixosOptions,
+    HmOptions,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 4] = [Tab::Overview, Tab::Deps, Tab::RevDeps, Tab::Graph];
+    pub const ALL: [Tab; 6] = [
+        Tab::Overview,
+        Tab::Deps,
+        Tab::RevDeps,
+        Tab::Graph,
+        Tab::NixosOptions,
+        Tab::HmOptions,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -31,6 +40,8 @@ impl Tab {
             Tab::Deps => "Dependencies",
             Tab::RevDeps => "Reverse deps",
             Tab::Graph => "Graph",
+            Tab::NixosOptions => "NixOS opts",
+            Tab::HmOptions => "HM opts",
         }
     }
 
@@ -40,6 +51,8 @@ impl Tab {
             Tab::Deps => '2',
             Tab::RevDeps => '3',
             Tab::Graph => '4',
+            Tab::NixosOptions => '5',
+            Tab::HmOptions => '6',
         }
     }
 
@@ -86,6 +99,9 @@ pub enum Phase {
 
 pub struct App {
     pub index: Option<Arc<Index>>,
+    pub options_index: Option<Arc<crate::options::OptionsIndex>>,
+    pub nixos_results: Vec<usize>, // indices into options_index.doc.nixos_options
+    pub hm_results: Vec<usize>,    // indices into options_index.doc.hm_options
     pub phase: Phase,
     pub query: String,
     pending_query: Option<String>,
@@ -120,6 +136,9 @@ impl App {
         let loader = indexer::start_loader(tx, Arc::clone(&cancel), force_rebuild);
         App {
             index: None,
+            options_index: None,
+            nixos_results: Vec::new(),
+            hm_results: Vec::new(),
             phase: Phase::Loading { done: 0, total: 0 },
             query: String::new(),
             pending_query: None,
@@ -187,11 +206,23 @@ impl App {
         changed
     }
 
-    fn attach_index(&mut self, index: Arc<Index>, fresh: bool, unkeyed: bool) {
+    fn attach_index(&mut self, index: Arc<Index>, _fresh: bool, _unkeyed: bool,
+    ) {
         // (Re)create the search worker for the new index.
         self.search = Some(SearchWorker::spawn(Arc::clone(&index)));
         self.index = Some(index);
-        self.phase = Phase::Ready { fresh, unkeyed };
+        // Load options index (embedded JSON)
+        match crate::options::OptionsIndex::load() {
+            Ok(opts) => {
+                self.options_index = Some(Arc::new(opts));
+                let nixos_count = self.options_index.as_ref().unwrap().doc.nixos_options.len();
+                let hm_count = self.options_index.as_ref().unwrap().doc.hm_options.len();
+                self.nixos_results = (0..nixos_count).collect();
+                self.hm_results = (0..hm_count).collect();
+            }
+            Err(e) => eprintln!("options load warning: {e}"),
+        }
+        self.phase = Phase::Ready { fresh: _fresh, unkeyed: _unkeyed };
         self.results.clear();
         self.rendered_ticket = 0;
         self.cursor = 0;
@@ -420,6 +451,8 @@ impl App {
                         .len()
                 }
             }
+            Tab::NixosOptions => self.nixos_results.len(),
+            Tab::HmOptions => self.hm_results.len(),
             Tab::Graph => 0,
         }
     }
