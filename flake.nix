@@ -24,7 +24,7 @@
             nativeBuildInputs = with pkgs; [ pkg-config ];
             buildInputs = with pkgs; [
               openssl
-            ] ++ lib.optionals stdenv.isDarwin [
+            ] ++ lib.optionals stdenv.hostPlatform.isDarwin [
               libiconv
               Security
             ];
