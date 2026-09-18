@@ -206,8 +206,7 @@ impl App {
         changed
     }
 
-    fn attach_index(&mut self, index: Arc<Index>, _fresh: bool, _unkeyed: bool,
-    ) {
+    fn attach_index(&mut self, index: Arc<Index>, _fresh: bool, _unkeyed: bool) {
         // (Re)create the search worker for the new index.
         self.search = Some(SearchWorker::spawn(Arc::clone(&index)));
         self.index = Some(index);
@@ -222,7 +221,10 @@ impl App {
             }
             Err(e) => eprintln!("options load warning: {e}"),
         }
-        self.phase = Phase::Ready { fresh: _fresh, unkeyed: _unkeyed };
+        self.phase = Phase::Ready {
+            fresh: _fresh,
+            unkeyed: _unkeyed,
+        };
         self.results.clear();
         self.rendered_ticket = 0;
         self.cursor = 0;

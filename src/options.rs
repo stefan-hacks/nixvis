@@ -4,7 +4,6 @@
 //! style configuration entries. Options are stored in a separate JSON file
 //! that is loaded at startup (after the main package index is ready).
 
-
 use serde::{Deserialize, Serialize};
 
 /// A single NixOS or Home-Manager configuration option.
@@ -47,17 +46,10 @@ impl OptionsIndex {
     /// Load options from embedded JSON files.
     pub fn load() -> Result<Self, crate::error::IndexerError> {
         let nixos_raw = include_str!("../data/nixos-options.json");
-        let hm_raw = include_str!("../data/hm-options.json");
-
-        let nixos_options: Vec<NixosOption> = serde_json::from_str(nixos_raw).unwrap_or_default();
-        let hm_options: Vec<HmOption> = serde_json::from_str(hm_raw).unwrap_or_default();
-
-        Ok(OptionsIndex {
-            doc: OptionsDoc {
-                nixos_options,
-                hm_options,
-            },
-        })
+        let doc: OptionsDoc = serde_json::from_str(nixos_raw).map_err(|e| {
+            crate::error::IndexerError::Exited(format!("nixos options parse error: {e}"))
+        })?;
+        Ok(OptionsIndex { doc })
     }
 
     /// Search NixOS options by name or description (case-insensitive substring).

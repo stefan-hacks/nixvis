@@ -543,7 +543,10 @@ async fn nixos_options(
     let opts = match crate::options::OptionsIndex::load() {
         Ok(o) => o,
         Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("options error: {e}"))
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("options error: {e}"),
+            )
                 .into_response();
         }
     };
@@ -552,7 +555,8 @@ async fn nixos_options(
     let nixos_filtered: Vec<_> = if q_str.is_empty() {
         opts.doc.nixos_options
     } else {
-        opts.doc.nixos_options
+        opts.doc
+            .nixos_options
             .into_iter()
             .filter(|opt| {
                 opt.name.to_lowercase().contains(&q_str)
@@ -562,12 +566,14 @@ async fn nixos_options(
     };
     let results: Vec<serde_json::Value> = nixos_filtered
         .into_iter()
-        .map(|opt| json!({
-            "name": opt.name,
-            "description": opt.description,
-            "type": opt.option_type,
-            "default": opt.default,
-        }))
+        .map(|opt| {
+            json!({
+                "name": opt.name,
+                "description": opt.description,
+                "type": opt.option_type,
+                "default": opt.default,
+            })
+        })
         .collect();
 
     let body = json!({
@@ -578,10 +584,7 @@ async fn nixos_options(
     (StatusCode::OK, Json(body)).into_response()
 }
 
-async fn hm_options(
-    State(state): State<Arc<AppState>>,
-    Query(q): Query<OptionsQuery>,
-) -> Response {
+async fn hm_options(State(state): State<Arc<AppState>>, Query(q): Query<OptionsQuery>) -> Response {
     let guard = state.inner.read().unwrap();
     let (generation, phase) = (guard.generation, guard.phase.clone());
     drop(guard);
@@ -593,7 +596,10 @@ async fn hm_options(
     let opts = match crate::options::OptionsIndex::load() {
         Ok(o) => o,
         Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("options error: {e}"))
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("options error: {e}"),
+            )
                 .into_response();
         }
     };
@@ -602,7 +608,8 @@ async fn hm_options(
     let hm_filtered: Vec<_> = if q_str.is_empty() {
         opts.doc.hm_options
     } else {
-        opts.doc.hm_options
+        opts.doc
+            .hm_options
             .into_iter()
             .filter(|opt| {
                 opt.name.to_lowercase().contains(&q_str)
@@ -612,12 +619,14 @@ async fn hm_options(
     };
     let results: Vec<serde_json::Value> = hm_filtered
         .into_iter()
-        .map(|opt| json!({
-            "name": opt.name,
-            "description": opt.description,
-            "type": opt.option_type,
-            "default": opt.default,
-        }))
+        .map(|opt| {
+            json!({
+                "name": opt.name,
+                "description": opt.description,
+                "type": opt.option_type,
+                "default": opt.default,
+            })
+        })
         .collect();
 
     let body = json!({
