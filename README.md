@@ -62,6 +62,12 @@ cargo install --path .
 nix run github:stefan-hacks/nixvis
 ```
 
+> **Tip — enable the binary cache** so you never compile from source:
+> ```bash
+> nix run nixpkgs#cachix -- use nixvis
+> ```
+> After that, `nix run github:stefan-hacks/nixvis` resolves in **under 1 second** instead of 1–2 minutes.
+
 ### Via Flake
 
 Add to your `flake.nix` inputs:

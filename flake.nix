@@ -1,6 +1,14 @@
 {
   description = "nixvis — interactive package explorer and dependency visualizer for the Nix ecosystem";
 
+  # Binary cache configuration (Cachix).
+  # To enable: create a free cache at https://www.cachix.org named "nixvis",
+  # then replace the public-key placeholder below with your real key.
+  nixConfig = {
+    extra-substituters = "https://nixvis.cachix.org";
+    extra-trusted-public-keys = "nixvis.cachix.org-1:PLACEHOLDER_REPLACE_WITH_REAL_KEY=";
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
