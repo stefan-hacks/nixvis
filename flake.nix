@@ -18,6 +18,7 @@
             pname = manifest.package.name;
             version = manifest.package.version;
             src = ./.;
+            buildFeatures = [ "web" ];
             cargoLock = {
               lockFile = ./Cargo.lock;
             };

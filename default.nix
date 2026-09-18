@@ -4,6 +4,7 @@ pkgs.rustPlatform.buildRustPackage {
   pname = "nixvis";
   version = "0.1.0";
   src = ./.;
+  buildFeatures = [ "web" ];
   cargoLock.lockFile = ./Cargo.lock;
   nativeBuildInputs = [ pkgs.pkg-config ];
   buildInputs = [ pkgs.openssl ];
