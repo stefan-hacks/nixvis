@@ -404,15 +404,6 @@ async fn package(
                 })
             })
             .collect();
-        let neighbors: Vec<serde_json::Value> = index
-            .module_neighbors(id)
-            .iter()
-            .filter(|n| **n != id)
-            .map(|n| {
-                let nb = &index.packages[*n as usize];
-                json!({ "name": nb.name.as_ref(), "version": nb.version.as_ref() })
-            })
-            .collect();
         Ok(json!({
             "generation": generation,
             "name": p.name.as_ref(),
@@ -426,7 +417,10 @@ async fn package(
             "deps": deps,
             "dependents": dependents,
             "dependents_count": index.dependents_count(id),
-            "module_neighbors": neighbors,
+            "attribute": p.attribute.as_ref(),
+            "store_path": p.store_path.as_ref(),
+            "installed": p.installed,
+            "flake": p.flake.as_ref(),
         }))
     })
     .await

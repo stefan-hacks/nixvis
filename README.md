@@ -34,6 +34,9 @@ Whether you're debugging a closure size explosion, auditing reverse dependencies
 - 🖥️ **TUI** built with [ratatui](https://github.com/ratatui/ratatui) for fast keyboard-driven exploration.
 - 💾 **Cached index**: serialises to gzipped JSON so subsequent starts are instant.
 - 📦 **Multi-flake support**: packages from `nixpkgs`, `home-manager`, and custom flakes coexist in one index.
+- ⚙️ **NixOS options browser**: search and inspect NixOS configuration options (`services.openssh.enable`, etc.).
+- 🏠 **Home-Manager options browser**: search Home-Manager configuration options (`programs.git.enable`, etc.).
+- ❄️ **Nix branding**: snowflake icons, Catppuccin Mocha colors, NixOS-inspired aesthetics.
 
 ---
 

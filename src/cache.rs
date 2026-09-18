@@ -115,12 +115,10 @@ impl Cache {
 /// Small helper: canonical location of the `nix` binary.
 pub fn find_nix() -> Option<PathBuf> {
     let candidates: Vec<PathBuf> = [
-        std::env::var_os("GUIX")
-            .map(PathBuf::from)
-            .map(|p| p.join("bin").join("nix")),
         Some(PathBuf::from("/run/current-system/profile/bin/nix")),
-        dirs::home_dir().map(|h| h.join(".config/nix/current/bin/nix")),
         dirs::home_dir().map(|h| h.join(".nix-profile/bin/nix")),
+        Some(PathBuf::from("/nix/var/nix/profiles/default/bin/nix")),
+        Some(PathBuf::from("/usr/bin/nix")),
     ]
     .into_iter()
     .flatten()

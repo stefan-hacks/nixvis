@@ -50,6 +50,38 @@ pub struct PkgJson {
     pub flake: String,
 }
 
+/// A NixOS configuration option (e.g. `services.openssh.enable`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NixosOption {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub option_type: String,
+    #[serde(default)]
+    pub default: String,
+    #[serde(default)]
+    pub example: String,
+    #[serde(default)]
+    pub source: String,
+}
+
+/// A Home-Manager configuration option (e.g. `programs.git.enable`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HmOption {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub option_type: String,
+    #[serde(default)]
+    pub default: String,
+    #[serde(default)]
+    pub example: String,
+    #[serde(default)]
+    pub source: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexDoc {
     pub header: Header,

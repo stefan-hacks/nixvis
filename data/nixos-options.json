@@ -1,0 +1,86 @@
+{
+  "nixos_options": [
+    {
+      "name": "services.openssh.enable",
+      "description": "Whether to enable the OpenSSH server daemon.",
+      "option_type": "boolean",
+      "default": "false",
+      "example": "true",
+      "source": "nixos/modules/services/networking/ssh/sshd.nix"
+    },
+    {
+      "name": "services.openssh.settings.PermitRootLogin",
+      "description": "Whether the root user can login via ssh.",
+      "option_type": "string",
+      "default": "\"prohibit-password\"",
+      "example": "\"no\"",
+      "source": "nixos/modules/services/networking/ssh/sshd.nix"
+    },
+    {
+      "name": "nix.settings.experimental-features",
+      "description": "Experimental Nix features to enable.",
+      "option_type": "list of strings",
+      "default": "[]",
+      "example": "[\"nix-command\" \"flakes\"]",
+      "source": "nixos/modules/config/nix.nix"
+    },
+    {
+      "name": "boot.loader.systemd-boot.enable",
+      "description": "Whether to enable the systemd-boot EFI boot loader.",
+      "option_type": "boolean",
+      "default": "true",
+      "example": "true",
+      "source": "nixos/modules/system/boot/loader/systemd-boot/systemd-boot.nix"
+    },
+    {
+      "name": "networking.hostName",
+      "description": "The hostname of your NixOS machine.",
+      "option_type": "string",
+      "default": "\"nixos\"",
+      "example": "\"my-host\"",
+      "source": "nixos/modules/config/networking.nix"
+    }
+  ],
+  "hm_options": [
+    {
+      "name": "programs.git.enable",
+      "description": "Whether to enable Git.",
+      "option_type": "boolean",
+      "default": "false",
+      "example": "true",
+      "source": "home-manager/modules/programs/git.nix"
+    },
+    {
+      "name": "programs.git.userName",
+      "description": "Git user name to use.",
+      "option_type": "string",
+      "default": "null",
+      "example": "\"John Doe\"",
+      "source": "home-manager/modules/programs/git.nix"
+    },
+    {
+      "name": "programs.kitty.enable",
+      "description": "Whether to enable the Kitty terminal emulator.",
+      "option_type": "boolean",
+      "default": "false",
+      "example": "true",
+      "source": "home-manager/modules/programs/kitty.nix"
+    },
+    {
+      "name": "programs.bash.enable",
+      "description": "Whether to enable GNU Bash.",
+      "option_type": "boolean",
+      "default": "false",
+      "example": "true",
+      "source": "home-manager/modules/programs/bash.nix"
+    },
+    {
+      "name": "programs.neovim.enable",
+      "description": "Whether to enable Neovim.",
+      "option_type": "boolean",
+      "default": "false",
+      "example": "true",
+      "source": "home-manager/modules/programs/neovim.nix"
+    }
+  ]
+}
