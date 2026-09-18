@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!--
+  nixvis — Web Frontend
+  =====================
+  A single-page application (SPA) that visualises the Nix ecosystem:
+  packages, flakes, NixOS options, and Home-Manager options.
+
+  Architecture:
+  - index.html : Semantic shell, loads CSS + JS, defines the DOM skeleton.
+  - style.css   : Catppuccin Mocha palette, responsive layout, CSS custom properties for theming.
+  - app.js      : Application state, search with fuzzy autocomplete, package details sidebar,
+                  theme switching, keyboard shortcuts, and JSON index loading.
+  - graph.js    : HTML5 Canvas force-directed graph engine (Verlet integration + quad-tree
+                  repulsion approximations) for dependency / reverse-dependency visualisation.
+
+  Colour Palette (Catppuccin Mocha — default theme)
+  -------------------------------------------------
+  bg      = #1e1e2e   (base)
+  panel   = #313244   (surface0)
+  accent  = #89b4fa   (blue)
+  text    = #cdd6f4   (text)
+  muted   = #6c7086   (overlay0)
+
+  Snowflake Icons used throughout: ❄  ❆  ⛄
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nixvis — Nix Ecosystem Explorer</title>
+  <meta name="description" content="Interactive package explorer and dependency visualizer for Nix, NixOS, and Home-Manager.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="catppuccin-mocha">
+  <!--
+    Root layout: three-column responsive grid.
+    - Left:   Search + results list.
+    - Center: Canvas graph visualisation (collapses on narrow screens).
+    - Right:  Package detail sidebar.
+  -->
+  <div id="app" class="app">
+    <!-- ========== TOP BAR ========== -->
+    <header class="top-bar" role="banner">
+      <div class="brand" title="nixvis — Nix Ecosystem Explorer">
+        <!-- Snowflake icon as brand mark -->
+        <span class="brand__icon" aria-hidden="true">❄</span>
+        <span class="brand__text">nixvis</span>
+        <span class="brand__tag">v0.1.0</span>
+      </div>
+      <div class="top-bar__actions">
+        <button id="btn-theme" class="btn-icon" title="Toggle theme (t)">
+          <span aria-hidden="true">◐</span>
+          <span class="sr-only">Toggle theme</span>
+        </button>
+        <button id="btn-help" class="btn-icon" title="Show help (?)">
+          <span aria-hidden="true">?</span>
+          <span class="sr-only">Show keyboard shortcuts</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ========== MAIN GRID ========== -->
+    <main class="main-grid">
+      <!-- --- LEFT PANEL: SEARCH + RESULTS --- -->
+      <section class="panel panel--search" aria-label="Search and results">
+        <div class="search-wrap">
+          <label for="search-input" class="sr-only">Search packages, flakes, or options</label>
+          <input
+            id="search-input"
+            class="search-input"
+            type="text"
+            placeholder="Search Nix packages, flakes, NixOS options…"
+            autocomplete="off"
+            spellcheck="false"
+            aria-autocomplete="list"
+            aria-controls="search-results"
+          >
+          <span class="search__shortcut-hint">Press <kbd>/</kbd> to focus</span>
+          <!-- Autocomplete dropdown (populated by app.js) -->
+          <ul id="search-suggest" class="search-suggest" role="listbox" hidden></ul>
+        </div>
+
+        <div class="results-meta" id="results-meta" aria-live="polite">
+          <span class="results-meta__count">0 packages</span>
+          <span class="results-meta__commit" id="commit-hash"></span>
+        </div>
+
+        <!-- Scrollable results list -->
+        <div class="results-scroll" id="results-scroll">
+          <ul id="search-results" class="results-list" role="listbox" aria-label="Search results"></ul>
+        </div>
+      </section>
+
+      <!-- --- CENTER PANEL: GRAPH CANVAS --- -->
+      <section class="panel panel--graph" aria-label="Dependency graph visualisation">
+        <div class="graph-toolbar">
+          <button id="btn-graph-deps" class="btn-segment btn-segment--active" title="Show dependencies">
+            Deps
+          </button>
+          <button id="btn-graph-rev" class="btn-segment" title="Show reverse dependencies">
+            Reverse
+          </button>
+          <div class="graph-toolbar__sep"></div>
+          <label class="graph-toolbar__label" for="graph-depth">Depth</label>
+          <input id="graph-depth" type="range" min="1" max="8" value="2" class="range-input" title="Graph depth">
+          <span id="graph-depth-val" class="graph-toolbar__val">2</span>
+          <div class="graph-toolbar__sep"></div>
+          <button id="btn-graph-reset" class="btn-icon" title="Reset view (r)">
+            <span aria-hidden="true">⟲</span>
+          </button>
+        </div>
+        <div class="graph-wrap">
+          <canvas id="graph-canvas" aria-label="Force-directed dependency graph canvas"></canvas>
+          <!-- Floating overlay for graph hints -->
+          <div id="graph-hint" class="graph-hint" hidden></div>
+        </div>
+        <div class="graph-status" id="graph-status" aria-live="polite"></div>
+      </section>
+
+      <!-- --- RIGHT PANEL: PACKAGE DETAILS --- -->
+      <aside class="panel panel--detail" aria-label="Package details">
+        <div class="detail-empty" id="detail-empty">
+          <span class="detail-empty__icon" aria-hidden="true">⛄</span>
+          <p class="detail-empty__text">Select a package to inspect its Nix expression metadata, dependencies, and store paths.</p>
+        </div>
+        <div class="detail-content" id="detail-content" hidden>
+          <header class="detail-header">
+            <h2 id="detail-name" class="detail-name"></h2>
+            <div class="detail-badges" id="detail-badges"></div>
+          </header>
+          <div class="detail-tabs" role="tablist">
+            <button class="detail-tab detail-tab--active" data-tab="info" role="tab" aria-selected="true">Info</button>
+            <button class="detail-tab" data-tab="deps" role="tab" aria-selected="false">Deps</button>
+            <button class="detail-tab" data-tab="reverse" role="tab" aria-selected="false">Reverse</button>
+            <button class="detail-tab" data-tab="flake" role="tab" aria-selected="false">Flake</button>
+          </div>
+          <div class="detail-body" id="detail-body"></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ========== HELP MODAL ========== -->
+    <dialog id="help-modal" class="modal" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="modal__content">
+        <header class="modal__header">
+          <h2>Keyboard Shortcuts</h2>
+          <button id="btn-help-close" class="btn-icon" title="Close (Esc)">
+            <span aria-hidden="true">✕</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <table class="shortcut-table">
+            <tbody>
+              <tr><td><kbd>/</kbd></td><td>Focus search</td></tr>
+              <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Navigate results</td></tr>
+              <tr><td><kbd>Enter</kbd></td><td>Open selected package details</td></tr>
+              <tr><td><kbd>t</kbd></td><td>Toggle theme</td></tr>
+              <tr><td><kbd>r</kbd></td><td>Reset graph view</td></tr>
+              <tr><td><kbd>d</kbd></td><td>Switch graph to dependencies</td></tr>
+              <tr><td><kbd>Shift</kbd>+<kbd>D</kbd></td><td>Switch graph to reverse dependencies</td></tr>
+              <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Increase / decrease graph depth</td></tr>
+              <tr><td><kbd>?</kbd></td><td>Toggle this help</td></tr>
+              <tr><td><kbd>Esc</kbd></td><td>Close modal / unfocus search</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ========== TOAST / NOTIFICATION ========== -->
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+
+  <!-- Application scripts — loaded deferred for non-blocking parsing -->
+  <script src="graph.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
