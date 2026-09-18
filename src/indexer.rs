@@ -143,7 +143,15 @@ pub fn build(
 ) -> Result<(crate::model::IndexDoc, Vec<u8>, String), IndexerError> {
     let _started = Instant::now();
 
-    // Try live nix search first if available.
+    // Try fast online search first (sub-second fuzzy results from search.nixos.org).
+    if let Some(doc) = crate::nixos_search::search_packages_default("", 50_000) {
+        let raw = serde_json::to_vec(&doc)
+            .map_err(|e| IndexerError::Exited(format!("serialize: {e}")))?;
+        let commit = doc.header.nixpkgs_commit.clone();
+        return Ok((doc, raw, commit));
+    }
+
+    // Fallback 1: local `nix search --json` (slow, but works offline).
     if let Some(nix_path) = find_nix() {
         let _ = progress.send(IndexEvent::Progress {
             done: 5,
@@ -164,7 +172,7 @@ pub fn build(
         }
     }
 
-    // Fallback: embedded JSON (works without Nix installed).
+    // Fallback 2: embedded JSON (works without Nix or internet).
     let _ = progress.send(IndexEvent::Progress {
         done: 50,
         total: 100,
