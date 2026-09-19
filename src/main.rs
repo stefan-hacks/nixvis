@@ -84,9 +84,9 @@ fn run(terminal: &mut DefaultTerminal, app: &mut App) -> anyhow::Result<()> {
         .unwrap_or((80, 24));
     loop {
         let poll = if app.animating() || app.graph_dirty {
-            Duration::from_millis(33)
+            Duration::from_millis(16)
         } else {
-            Duration::from_millis(250)
+            Duration::from_millis(16)
         };
 
         if event::poll(poll)? {

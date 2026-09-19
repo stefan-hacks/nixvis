@@ -15,12 +15,35 @@ use crate::theme::Theme;
 pub fn draw(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
     let is_nixos = app.tab == crate::app::Tab::NixosOptions;
 
-    // Extract data references before borrowing app mutably
+    // Split area into query bar + results
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    let query_bar = Paragraph::new(Line::from(vec![
+        Span::styled("search: ", Style::default().fg(th.muted)),
+        Span::styled(
+            app.query.as_str(),
+            Style::default().fg(th.fg).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            if app.query.is_empty() {
+                " (type to filter)"
+            } else {
+                ""
+            },
+            Style::default().fg(th.muted),
+        ),
+    ]))
+    .style(Style::default().bg(th.bg));
+    f.render_widget(query_bar, chunks[0]);
+
     let (cursor, scroll) = (app.cursor, app.scroll);
     let results: Vec<OptionRow> = {
         let Some(idx) = app.options_index.as_ref() else {
             let msg = Paragraph::new("Options not loaded").style(Style::default().fg(th.fg));
-            f.render_widget(msg, area);
+            f.render_widget(msg, chunks[1]);
             return;
         };
         if is_nixos {
@@ -56,15 +79,15 @@ pub fn draw(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
         }
     };
 
-    let width = area.width.max(30);
-    let left_w = (width * 55 / 100).min(area.width.saturating_sub(30));
-    let chunks = Layout::default()
+    let width = chunks[1].width.max(30);
+    let left_w = (width * 55 / 100).min(chunks[1].width.saturating_sub(30));
+    let inner = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(left_w), Constraint::Min(0)])
-        .split(area);
+        .split(chunks[1]);
 
-    draw_list(f, th, chunks[0], &results, cursor);
-    draw_detail(f, th, chunks[1], &results, cursor, scroll);
+    draw_list(f, th, inner[0], &results, cursor);
+    draw_detail(f, th, inner[1], &results, cursor, scroll);
 }
 
 #[derive(Clone)]

@@ -278,6 +278,66 @@ impl App {
         self.last_edit = Instant::now();
         self.cursor = 0;
         self.scroll = 0;
+        // Synchronous filter for options tabs (avoids async worker latency).
+        if self.tab == Tab::NixosOptions || self.tab == Tab::HmOptions {
+            self.filter_options();
+        }
+    }
+
+    /// Remove last char from query.
+    fn pop_query(&mut self) {
+        self.query.pop();
+        self.pending_query = Some(self.query.clone());
+        self.last_edit = Instant::now();
+        self.cursor = 0;
+        self.scroll = 0;
+        if self.tab == Tab::NixosOptions || self.tab == Tab::HmOptions {
+            self.filter_options();
+        }
+    }
+
+    /// Filter options synchronously by query substring (case-insensitive).
+    fn filter_options(&mut self) {
+        let q = self.query.to_lowercase();
+        let Some(idx) = self.options_index.as_ref() else {
+            return;
+        };
+        let is_nixos = self.tab == Tab::NixosOptions;
+        if is_nixos {
+            if q.is_empty() {
+                self.nixos_results = (0..idx.doc.nixos_options.len()).collect();
+            } else {
+                self.nixos_results = idx
+                    .doc
+                    .nixos_options
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, o)| {
+                        o.name.to_lowercase().contains(&q)
+                            || o.description.to_lowercase().contains(&q)
+                    })
+                    .map(|(i, _)| i)
+                    .collect();
+            }
+        } else {
+            if q.is_empty() {
+                self.hm_results = (0..idx.doc.hm_options.len()).collect();
+            } else {
+                self.hm_results = idx
+                    .doc
+                    .hm_options
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, o)| {
+                        o.name.to_lowercase().contains(&q)
+                            || o.description.to_lowercase().contains(&q)
+                    })
+                    .map(|(i, _)| i)
+                    .collect();
+            }
+        }
+        self.cursor = 0;
+        self.scroll = 0;
     }
 
     /// Rebuild the index in the background (keeps current index usable).
@@ -507,6 +567,8 @@ impl App {
             KeyCode::Char('2') if idle => self.switch_tab(Tab::Deps),
             KeyCode::Char('3') if idle => self.switch_tab(Tab::RevDeps),
             KeyCode::Char('4') if idle => self.switch_tab(Tab::Graph),
+            KeyCode::Char('5') if idle => self.switch_tab(Tab::NixosOptions),
+            KeyCode::Char('6') if idle => self.switch_tab(Tab::HmOptions),
             KeyCode::Char('d') if idle => self.switch_tab(Tab::Deps),
             KeyCode::Char('r') if idle => self.switch_tab(Tab::RevDeps),
             KeyCode::Char('v') if idle => self.switch_tab(Tab::Graph),
@@ -638,11 +700,7 @@ impl App {
                 self.page_cursor(10, true);
             }
             KeyCode::Backspace => {
-                self.query.pop();
-                self.pending_query = Some(self.query.clone());
-                self.last_edit = Instant::now();
-                self.cursor = 0;
-                self.scroll = 0;
+                self.pop_query();
                 self.dirty = true;
             }
             KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {

@@ -12,7 +12,6 @@
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
 
-
 /// Result of a single `nix derivation show` query.
 #[derive(Debug, Clone)]
 pub struct DerivationInfo {
@@ -114,10 +113,7 @@ mod tests {
 
     #[test]
     fn test_extract_name() {
-        assert_eq!(
-            extract_name("/nix/store/abc123-glibc-2.39"),
-            "glibc-2.39"
-        );
+        assert_eq!(extract_name("/nix/store/abc123-glibc-2.39"), "glibc-2.39");
         assert_eq!(extract_name("glibc-2.39"), "2.39");
         assert_eq!(extract_name("hello"), "hello");
     }
