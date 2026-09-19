@@ -7,7 +7,7 @@ pub mod list;
 pub mod options;
 pub mod tree;
 
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -91,6 +91,11 @@ fn draw_header(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
 }
 
 fn draw_body(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
+    // Startup phase: show the cache prompt instead of normal tabs.
+    if matches!(app.phase, Phase::Startup { .. }) {
+        draw_startup(f, app, th, area);
+        return;
+    }
     match app.tab {
         Tab::Overview => {
             let width = area.width.max(30);
@@ -129,6 +134,35 @@ fn draw_status(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
 
 fn status_left(app: &App, th: &Theme) -> Span<'static> {
     match &app.phase {
+        Phase::Startup {
+            timestamp,
+            size_mb,
+            commit,
+        } => {
+            let dt_str = if *timestamp > 0 {
+                let secs = *timestamp;
+                let mins = secs / 60;
+                let hrs = mins / 60;
+                let days = hrs / 24;
+                if days > 0 {
+                    format!("{days}d ago")
+                } else if hrs > 0 {
+                    format!("{hrs}h ago")
+                } else if mins > 0 {
+                    format!("{mins}m ago")
+                } else {
+                    format!("{secs}s ago")
+                }
+            } else {
+                "unknown date".to_string()
+            };
+            Span::styled(
+                format!(
+                    "💾 cached index found · {size_mb:.1} MB · {commit} · {dt_str}  (c=continue  r=rebuild)"
+                ),
+                Style::default().fg(th.accent),
+            )
+        }
         Phase::Loading { done, total } => {
             let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
             let spinner = frames[(app.tick as usize / 3) % frames.len()];
@@ -175,4 +209,100 @@ fn status_left(app: &App, th: &Theme) -> Span<'static> {
             Style::default().fg(th.graph_focus),
         ),
     }
+}
+
+/// Draw the startup cache prompt (Phase::Startup).
+fn draw_startup(f: &mut Frame, app: &mut App, th: &Theme, area: Rect) {
+    let Phase::Startup {
+        timestamp,
+        size_mb,
+        commit,
+    } = &app.phase
+    else {
+        return;
+    };
+
+    let dt_str = if *timestamp > 0 {
+        let secs = *timestamp;
+        let mins = secs / 60;
+        let hrs = mins / 60;
+        let days = hrs / 24;
+        if days > 0 {
+            format!("{days}d ago")
+        } else if hrs > 0 {
+            format!("{hrs}h ago")
+        } else if mins > 0 {
+            format!("{mins}m ago")
+        } else {
+            format!("{secs}s ago")
+        }
+    } else {
+        "unknown date".to_string()
+    };
+
+    let inner = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(30),
+            Constraint::Length(12),
+            Constraint::Percentage(30),
+        ])
+        .split(area)[1];
+
+    let lines = vec![
+        Line::from(vec![Span::styled(
+            "📦  nixvis",
+            Style::default().fg(th.accent).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Cached index found", Style::default().fg(th.accent)),
+            Span::styled("  ·  ", Style::default().fg(th.muted)),
+            Span::styled(format!("{size_mb:.1} MB"), Style::default().fg(th.fg)),
+            Span::styled("  ·  ", Style::default().fg(th.muted)),
+            Span::styled(format!("{commit}"), Style::default().fg(th.fg)),
+            Span::styled("  ·  ", Style::default().fg(th.muted)),
+            Span::styled(dt_str, Style::default().fg(th.fg)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(
+                "c",
+                Style::default().fg(th.accent).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "  Continue with cached index",
+                Style::default().fg(th.muted),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(
+                "r",
+                Style::default().fg(th.accent).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "  Rebuild and replace with fresh data",
+                Style::default().fg(th.muted),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(
+                "q",
+                Style::default().fg(th.accent).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("  Quit", Style::default().fg(th.muted)),
+        ]),
+    ];
+
+    let para = Paragraph::new(lines).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(ratatui::widgets::BorderType::Rounded)
+            .title(Span::styled(
+                "  cache prompt  ",
+                Style::default().fg(th.accent).add_modifier(Modifier::BOLD),
+            ))
+            .style(Style::default().bg(th.bg)),
+    );
+    f.render_widget(para, inner);
 }

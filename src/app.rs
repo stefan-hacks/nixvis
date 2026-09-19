@@ -9,6 +9,7 @@ use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::cache::{Cache, CacheStatus};
 use crate::graph::{GraphView, DEFAULT_DEPTH};
 use crate::index::Index;
 use crate::indexer::{self, IndexEvent};
@@ -92,8 +93,17 @@ pub struct RevState {
 
 #[derive(Debug)]
 pub enum Phase {
+    /// Showing the startup cache prompt (cache found).
+    Startup {
+        timestamp: u64,
+        size_mb: f64,
+        commit: String,
+    },
+    /// Building / downloading a fresh index.
     Loading { done: u64, total: u64 },
+    /// Index is ready and searchable.
     Ready { fresh: bool, unkeyed: bool },
+    /// Fatal error during load/build.
     Failed { msg: String },
 }
 
@@ -129,8 +139,60 @@ pub struct App {
 }
 
 impl App {
-    /// Create the app and start the cache/index loader in the background.
+    /// Create the app.
+    ///
+    /// If a cache exists and `--force` was not passed, the app starts in
+    /// `Phase::Startup` so the user can choose between the cached index and
+    /// a fresh download. Otherwise it immediately starts the loader thread.
     pub fn new(force_rebuild: bool) -> Self {
+        if !force_rebuild {
+            if let Ok(cache) = Cache::new() {
+                let info = cache.info();
+                if info.exists {
+                    let commit = match cache.load(None) {
+                        Ok(CacheStatus::Fresh(doc, _)) => doc.header.nixpkgs_commit,
+                        Ok(CacheStatus::Stale { reason, .. }) => reason,
+                        _ => "unknown".to_string(),
+                    };
+                    let size_mb = info.size_bytes as f64 / (1024.0 * 1024.0);
+                    return App {
+                        index: None,
+                        options_index: None,
+                        nixos_results: Vec::new(),
+                        hm_results: Vec::new(),
+                        phase: Phase::Startup {
+                            timestamp: info.modified,
+                            size_mb,
+                            commit,
+                        },
+                        query: String::new(),
+                        pending_query: None,
+                        last_edit: Instant::now(),
+                        results: Vec::new(),
+                        rendered_ticket: 0,
+                        cursor: 0,
+                        scroll: 0,
+                        tab: Tab::Overview,
+                        tree: TreeState::default(),
+                        rev: RevState::default(),
+                        graph: GraphView::default(),
+                        theme_idx: 0,
+                        help_open: false,
+                        dirty: true,
+                        tick: 0,
+                        size: (80, 24),
+                        quit: false,
+                        search: None,
+                        events: None,
+                        cancel: Arc::new(AtomicBool::new(false)),
+                        loader: None,
+                        graph_dirty: true,
+                    };
+                }
+            }
+        }
+
+        // No cache or --force: start the loader immediately.
         let (tx, rx) = mpsc::channel();
         let cancel = Arc::new(AtomicBool::new(false));
         let loader = indexer::start_loader(tx, Arc::clone(&cancel), force_rebuild);
@@ -523,6 +585,34 @@ impl App {
     /// k, h, l, +, -, q) act only while the search box is empty, so typing
     /// stays free-form; arrows, Enter, Tab, PgUp/PgDn and Esc always work.
     pub fn on_key(&mut self, key: KeyEvent) {
+        // Handle startup phase keys before anything else.
+        if matches!(self.phase, Phase::Startup { .. }) {
+            match key.code {
+                KeyCode::Char('c') | KeyCode::Char('C') => {
+                    // Continue with cached index: start loader from cache.
+                    let (tx, rx) = mpsc::channel();
+                    let cancel = Arc::new(AtomicBool::new(false));
+                    let loader = indexer::start_loader(tx, Arc::clone(&cancel), false);
+                    self.events = Some(rx);
+                    self.cancel = cancel;
+                    self.loader = Some(loader);
+                    self.phase = Phase::Loading { done: 0, total: 0 };
+                    self.dirty = true;
+                    return;
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    // Rebuild: force a fresh download.
+                    self.rebuild();
+                    return;
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    self.quit = true;
+                    return;
+                }
+                _ => {}
+            }
+        }
+
         let idle = self.query.is_empty();
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {

@@ -64,7 +64,7 @@ pub fn start_loader(tx: Sender<IndexEvent>, cancel: Cancel, force: bool) -> Join
             if !force {
                 if let Ok(cache) = Cache::new() {
                     match cache.load(commit.as_deref()) {
-                        Ok(CacheStatus::Fresh(doc)) => match Index::from_doc(doc, now_ms()) {
+                        Ok(CacheStatus::Fresh(doc, _)) => match Index::from_doc(doc, now_ms()) {
                             Ok(index) => {
                                 let _ = tx.send(IndexEvent::Ready {
                                     index: Arc::new(index),
@@ -80,7 +80,7 @@ pub fn start_loader(tx: Sender<IndexEvent>, cancel: Cancel, force: bool) -> Join
                                 cache.quarantine();
                             }
                         },
-                        Ok(CacheStatus::Stale { reason }) => {
+                        Ok(CacheStatus::Stale { reason, .. }) => {
                             let _ = tx.send(IndexEvent::Failed {
                                 msg: format!("cache stale ({reason}); rebuilding"),
                             });
