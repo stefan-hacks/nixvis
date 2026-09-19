@@ -215,7 +215,15 @@ mod tests {
 
     #[test]
     fn test_cache_info_empty_dir() {
-        let dir = std::env::temp_dir().join("nixvis-test-empty-").join(format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+        let dir = std::env::temp_dir()
+            .join("nixvis-test-empty-")
+            .join(format!(
+                "{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            ));
         let c = Cache::at(dir.clone());
         let info = c.info();
         assert!(!info.exists);
@@ -228,7 +236,10 @@ mod tests {
     fn test_cache_save_and_load() {
         let dir = std::env::temp_dir().join(format!(
             "nixvis-test-{}",
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
         ));
         let c = Cache::at(dir.clone());
         let raw = b"hello world".to_vec();

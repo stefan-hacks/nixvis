@@ -7,6 +7,7 @@
 
 pub mod app;
 pub mod cache;
+pub mod db;
 pub mod error;
 pub mod graph;
 pub mod index;

@@ -25,6 +25,8 @@ nucleo-matcher = "0.3"
 owo-colors = { version = "4.1", optional = true }
 ratatui = "0.30"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
+# SQLite local database — the "cache" is the database itself.
+rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

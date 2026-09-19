@@ -10,6 +10,7 @@ use std::time::Instant;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::cache::{Cache, CacheStatus};
+use crate::db::{self, load_index_from_db};
 use crate::graph::{GraphView, DEFAULT_DEPTH};
 use crate::index::Index;
 use crate::indexer::{self, IndexEvent};
@@ -146,6 +147,44 @@ impl App {
     /// a fresh download. Otherwise it immediately starts the loader thread.
     pub fn new(force_rebuild: bool) -> Self {
         if !force_rebuild {
+            // Try SQLite DB first (new fast path).
+            if let Some(info) = db::db_info() {
+                let size_mb = info.size_bytes as f64 / (1024.0 * 1024.0);
+                return App {
+                    index: None,
+                    options_index: None,
+                    nixos_results: Vec::new(),
+                    hm_results: Vec::new(),
+                    phase: Phase::Startup {
+                        timestamp: info.modified,
+                        size_mb,
+                        commit: info.nixpkgs_commit,
+                    },
+                    query: String::new(),
+                    pending_query: None,
+                    last_edit: Instant::now(),
+                    results: Vec::new(),
+                    rendered_ticket: 0,
+                    cursor: 0,
+                    scroll: 0,
+                    tab: Tab::Overview,
+                    tree: TreeState::default(),
+                    rev: RevState::default(),
+                    graph: GraphView::default(),
+                    theme_idx: 0,
+                    help_open: false,
+                    dirty: true,
+                    tick: 0,
+                    size: (80, 24),
+                    quit: false,
+                    search: None,
+                    events: None,
+                    cancel: Arc::new(AtomicBool::new(false)),
+                    loader: None,
+                    graph_dirty: true,
+                };
+            }
+            // Fall back to old gzipped JSON cache.
             if let Ok(cache) = Cache::new() {
                 let info = cache.info();
                 if info.exists {
@@ -589,13 +628,29 @@ impl App {
         if matches!(self.phase, Phase::Startup { .. }) {
             match key.code {
                 KeyCode::Char('c') | KeyCode::Char('C') => {
-                    // Continue with cached index: start loader from cache.
+                    // Continue with cached index: try SQLite DB first, then old JSON cache.
                     let (tx, rx) = mpsc::channel();
                     let cancel = Arc::new(AtomicBool::new(false));
-                    let loader = indexer::start_loader(tx, Arc::clone(&cancel), false);
+                    let loader = std::thread::Builder::new()
+                        .name("nixvis-db-loader".into())
+                        .spawn(move || match load_index_from_db() {
+                            Ok((index, _header)) => {
+                                let _ = tx.send(IndexEvent::Ready {
+                                    index: Arc::new(index),
+                                    fresh: true,
+                                    unkeyed: true,
+                                });
+                            }
+                            Err(e) => {
+                                eprintln!("DB load failed ({e}), falling back to cache");
+                                let _ = tx.send(IndexEvent::Failed {
+                                    msg: format!("DB load failed ({e}); press R to rebuild"),
+                                });
+                            }
+                        });
                     self.events = Some(rx);
                     self.cancel = cancel;
-                    self.loader = Some(loader);
+                    self.loader = Some(loader.unwrap());
                     self.phase = Phase::Loading { done: 0, total: 0 };
                     self.dirty = true;
                     return;

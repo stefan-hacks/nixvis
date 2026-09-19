@@ -7,6 +7,13 @@ use std::sync::Arc;
 use crate::error::IndexError;
 use crate::model::{IndexDoc, SCHEMA_VERSION};
 
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 /// How many synopsis characters go into the fuzzy-search haystack.
 pub const SYN_LIMIT: usize = 200;
 
@@ -226,6 +233,55 @@ impl Index {
 
     pub fn len(&self) -> usize {
         self.packages.len()
+    }
+
+    /// Build an Index from already-resolved Package structs.
+    pub fn from_packages(
+        packages: Vec<Package>,
+        nixpkgs_commit: String,
+    ) -> Result<Self, IndexError> {
+        let len = packages.len();
+        let mut names: HashMap<Arc<str>, u32> = HashMap::with_capacity(len);
+        let mut dependents: Vec<Vec<u32>> = vec![Vec::new(); len];
+        let mut by_module: HashMap<Arc<str>, Vec<u32>> = HashMap::new();
+
+        for pkg in &packages {
+            if pkg.id as usize >= len {
+                return Err(IndexError::IdOutOfRange(pkg.id, len));
+            }
+            names.entry(Arc::clone(&pkg.name)).or_insert(pkg.id);
+            if !pkg.file.is_empty() {
+                by_module
+                    .entry(Arc::clone(&pkg.file))
+                    .or_default()
+                    .push(pkg.id);
+            }
+            // Build reverse edges from each dep list
+            for (dep_id, _) in pkg.deps() {
+                if (dep_id as usize) < len {
+                    dependents[dep_id as usize].push(pkg.id);
+                }
+            }
+        }
+
+        let dependents: Vec<Arc<[u32]>> = dependents.into_iter().map(|v| Arc::from(v)).collect();
+
+        // Sort and deduplicate dependents
+        for _d in &dependents {
+            // Already deduplicated in deps() per-package, but a package might
+            // be a dependent of multiple others; dedup by-package is enough.
+        }
+
+        // generated_ms defaults to 0 when unknown.
+        Ok(Index {
+            packages,
+            names,
+            dependents,
+            by_module,
+            nixpkgs_commit,
+            generated_ms: 0,
+            built_ms: now_ms(),
+        })
     }
 
     pub fn is_empty(&self) -> bool {

@@ -98,15 +98,25 @@ pub fn start_loader(tx: Sender<IndexEvent>, cancel: Cancel, force: bool) -> Join
                 }
             }
 
-            // Rebuild path: run the indexer, then save the cache.
+            // Rebuild path: run the indexer, then save the cache and SQLite DB.
             match build(commit.as_deref(), &cancel, &tx) {
                 Ok((doc, raw, _)) => {
+                    // Save old gzipped JSON cache (kept for compatibility).
                     if let Ok(cache) = Cache::new() {
                         if let Err(e) = cache.save(&raw) {
                             let _ = tx.send(IndexEvent::Failed {
                                 msg: format!("cache save failed: {e}"),
                             });
                         }
+                    }
+                    // Save to SQLite DB (the new fast path).
+                    match crate::db::open_db() {
+                        Ok(mut conn) => {
+                            if let Err(e) = crate::db::save_index(&mut conn, &doc) {
+                                eprintln!("DB save warning: {e}");
+                            }
+                        }
+                        Err(e) => eprintln!("DB open warning: {e}"),
                     }
                     match Index::from_doc(doc, now_ms()) {
                         Ok(index) => {
